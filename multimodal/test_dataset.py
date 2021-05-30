@@ -5,7 +5,8 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
 import cv2
 import numpy as np
-from models.tacto_base_models.encoders import TactoColorEncoder, TactoDepthEncoder, FullTactoColorEncoder, FullTactoDepthEncoder
+from models.tacto_base_models.encoders import TactoColorEncoder, TactoDepthEncoder, FullTactoColorEncoder, FullTactoDepthEncoder, TactoEncoder, PerlsImageEncoder, PerlsDepthEncoder
+from models.models_utils import rescaleImage
 import torch
 
 def main():
@@ -30,6 +31,9 @@ def main():
     full_c_enc = FullTactoColorEncoder(128).to(device)
     full_d_enc = FullTactoDepthEncoder(128).to(device)
 
+    image_enc = PerlsImageEncoder(128).to(device)
+    depth_enc = PerlsDepthEncoder(128).to(device)
+    tacto_enc = TactoEncoder(128).to(device)
     for i_batched, sample_batched in enumerate(loader):
         #print ("--------------------------")
         #print (f"Sample: {sample_batched['pre_action']['proprio']}")
@@ -42,16 +46,25 @@ def main():
         #print (f"digits_color_shape: {sample_batched['digits_color'].shape}")
         #print (f"digits_depth_shape: {sample_batched['digits_depth'].shape}")
 
-        clr_imgs = sample_batched['digits_color'].to(device)
+        clr_images = sample_batched['image']
+        clr_images = rescaleImage(clr_images).to(device)
+        
+        depth_img = sample_batched['depth'].transpose(1, 3).transpose(2, 3).to(device)
 
+        cl_op, cl_convs = image_enc(clr_images)
+        dp_op, dp_convs = depth_enc(depth_img)
+
+        tacto_clr_imgs = sample_batched['digits_color'].to(device)
         first_depth = sample_batched['digits_depth'].to(device)
 
-        op_clr = full_c_enc(clr_imgs)
+        #op_clr = full_c_enc(clr_imgs)
         #print(f"sing_img_shape: {}")
-        op_depth = full_d_enc(first_depth)
+        #op_depth = full_d_enc(first_depth)
 
-        print (f"color_shape: {op_clr.shape}")
-        print (f"depth_shape: {op_depth.shape}")
+        tacto_lin_out = tacto_enc(tacto_clr_imgs, first_depth)
+        #print (f"color_shape: {tacto_lin_out.shape}")
+        #print (f"depth_shape: {op_depth.shape}")
+        print (f"img_color_shape: {dp_op.shape}")
         count += 1
     
     #print (f"dataset[100]: {dataset[100]}")

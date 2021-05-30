@@ -55,7 +55,7 @@ class TactoManipulationDataset(Dataset):
 
 
         sample = {
-            "image": image.astype(np.float),
+            "image": image.astype(np.float32),
             "depth": np.expand_dims(depth, axis=2).astype(np.float32),
             "flow": flow,
             "flow_mask": flow_mask,

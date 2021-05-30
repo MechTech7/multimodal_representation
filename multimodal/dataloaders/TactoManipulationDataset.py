@@ -6,11 +6,12 @@ from dataloaders.util import DatasetUtils
 from torch.utils.data import Dataset, dataset
 
 class TactoManipulationDataset(Dataset):
-    def __init__(self, 
-                 dataset_location="/home/mason/peg_insertation_dataset/heuristic_data_contact/") -> None:
+    def __init__(self,
+                 transform=None, 
+                 dataset_location="/home/mason/peg_insertation_dataset/heuristic_data_contact_1/") -> None:
         self.dataset_location = dataset_location
         self.data_util = DatasetUtils(dataset_location)
-
+        self.transform = transform
         self.pairing_tolerance = 0.2 #placeholder value
 
         #NOTE: I know it's not the best idea to load everything into RAM but it seems to work for now
@@ -35,7 +36,7 @@ class TactoManipulationDataset(Dataset):
         depth = example["cam_depth"]
         digits_color = example["digits_color"]
         digits_depth = example["digits_depth"]
-        proprio = example["proprio"]
+        proprio = example["proprio"][:8]
 
         flow = example["optical_flow"]
 
@@ -48,7 +49,7 @@ class TactoManipulationDataset(Dataset):
             2,
         )
 
-        unpaired_proprio = unpaired_ex["proprio"]
+        unpaired_proprio = unpaired_ex["proprio"][:8]
         unpaired_digits_color = unpaired_ex["digits_color"]
         unpaired_digits_depth = unpaired_ex["digits_depth"]
 
@@ -59,8 +60,8 @@ class TactoManipulationDataset(Dataset):
             "flow": flow,
             "flow_mask": flow_mask,
             "action": self.data_list[index]["action"],
-            "digits_color": digits_color,
-            "digits_depth": digits_depth,
+            "digits_color": np.array(digits_color),
+            "digits_depth": np.array(digits_depth),
             "proprio": proprio,
             "ee_yaw_next": self.data_list[index]["ee_yaw_next"],
             "contact_next": np.array([self.data_list[index]["contact"]]).astype(np.float),
@@ -71,6 +72,8 @@ class TactoManipulationDataset(Dataset):
             "unpaired_digits_depth": unpaired_digits_depth
         }
 
+        if self.transform:
+            sample = self.transform(sample)
         return sample
 
     def _init_paired_filenames(self):
@@ -78,11 +81,11 @@ class TactoManipulationDataset(Dataset):
 
         self.paired_examples = {}
 
-        for idx in tqdm(range(self.__len__())):
+        for idx in tqdm(range(self.__len__()), desc="pairing filnames"):
             proprio_dist = None
             curr_proprio = self.data_list[idx]["proprio"]
             while proprio_dist is None or proprio_dist < tolerance:
-                print (f"proprio_dist: {proprio_dist}")
+                #print (f"proprio_dist: {proprio_dist}")
                 unpaired_idx = np.random.randint(self.__len__())
 
                 while unpaired_idx == idx:
@@ -90,7 +93,7 @@ class TactoManipulationDataset(Dataset):
                 
                 unpaired_proprio = self.data_list[unpaired_idx]["proprio"]
             
-                print ("--------------------------")
+                #print ("--------------------------")
                 #print (f"Curr_proprio: {curr_proprio}")
                 #print (f"unpaired_proprio: {unpaired_proprio}")
                 proprio_dist = np.linalg.norm(np.array(curr_proprio[:3]) - np.array(unpaired_proprio[:3]))

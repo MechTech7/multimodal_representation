@@ -11,7 +11,7 @@ class DatasetUtils:
         self.folder_name = folder_name
         self.example_count = 0
         pass
-
+    
     def _save_example(self, first_comp, sec_comp, save_location):
         cam_clr_img = Image.fromarray(first_comp["cam_color"])
         cam_clr_img.save(os.path.join(save_location, f"cam_color.png"))
@@ -24,8 +24,9 @@ class DatasetUtils:
         tacto_clr_1.save(os.path.join(save_location, f"digits_color_1.png"))
 
         optical_flow, _ = self._get_optical_flow(first_comp, sec_comp)
-        optical_flow_img = Image.fromarray(optical_flow)
-        optical_flow_img.save(os.path.join(save_location, "optical_flow.png"))
+        np.save(os.path.join(save_location, "flow.npy"), optical_flow)
+        #optical_flow_img = Image.fromarray(optical_flow)
+        #optical_flow_img.save(os.path.join(save_location, "optical_flow.png"))
 
         np.save(os.path.join(save_location, f"digits_depth_0.npy"), first_comp["digits_depth"][0])
         np.save(os.path.join(save_location, f"digits_depth_1.npy"), first_comp["digits_depth"][1])
@@ -54,6 +55,8 @@ class DatasetUtils:
 
             np.save(os.path.join(save_location, f"action_vec.npy"), action)
             self.example_count += 1
+            
+
 
     def _recall_example(self, save_location):
         op_example = {}
@@ -70,8 +73,8 @@ class DatasetUtils:
                                     np.load(os.path.join(save_location, f"digits_depth_1.npy"))]
         op_example["proprio"] = np.load(os.path.join(save_location, f"proprio.npy"))
 
-        optical_flow_img = Image.open(os.path.join(save_location, f"optical_flow.png"))
-        op_example["optical_flow"] = np.asarray(optical_flow_img)
+        #optical_flow_img = Image.open(os.path.join(save_location, f"optical_flow.png"))
+        op_example["optical_flow"] = np.load(os.path.join(save_location, "flow.npy")) #np.asarray(optical_flow_img)
 
         action_arr = np.load(os.path.join(save_location, f"action_vec.npy"))
         contact_bool = (action_arr[-1] == 1.0)
@@ -80,7 +83,7 @@ class DatasetUtils:
         op_example["action"] = action_arr[:-1]
         
         yaw_next = np.load(os.path.join(save_location, f"ee_yaw_next.npy"))
-        op_example["ee_yaw_next"] = yaw_next
+        op_example["yaw_next"] = yaw_next
         #print (f"Action Shape: {op_example['action'].shape}")
         return op_example
 
@@ -88,7 +91,7 @@ class DatasetUtils:
         first_image = first_comp["cam_color"]
         sec_image = sec_comp["cam_color"]
 
-        mask = np.zeros_like(first_image)
+        #mask = np.zeros_like(first_image)
 
         first_gray = cv2.cvtColor(first_image, cv2.COLOR_RGB2GRAY)
         sec_gray = cv2.cvtColor(sec_image, cv2.COLOR_RGB2GRAY)
@@ -97,20 +100,21 @@ class DatasetUtils:
         flow = cv2.calcOpticalFlowFarneback(first_gray, sec_gray, 
                                             None,
                                             0.5, 3, 15, 3, 5, 1.2, 0)
+        #print (f"========================flow shape: {flow.shape}==============================")
         #print (f"flow shape: {flow.shape}")
-        mask[..., 1] = 255
+        #mask[..., 1] = 255
 
-        magnitude, angle = cv2.cartToPolar(flow[..., 0], flow[..., 1])
+        #magnitude, angle = cv2.cartToPolar(flow[..., 0], flow[..., 1])
         #print (f"angle shape: {angle.shape}")
 
-        mask[..., 0] = angle * 180 / np.pi / 2
+        #mask[..., 0] = angle * 180 / np.pi / 2
       
         # Sets image value according to the optical flow
         # magnitude (normalized)
-        mask[..., 2] = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
+        #mask[..., 2] = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
       
         # Converts HSV to RGB (BGR) color representation
-        rgb = cv2.cvtColor(mask, cv2.COLOR_HSV2RGB)
+        #rgb = cv2.cvtColor(mask, cv2.COLOR_HSV2RGB)
 
         flow_mask = np.expand_dims(
                         np.where(
@@ -120,7 +124,7 @@ class DatasetUtils:
                         ),
                         2,
                 )
-        return rgb, flow_mask
+        return flow, flow_mask
 
     def recall_obs(self):
         op_list = []

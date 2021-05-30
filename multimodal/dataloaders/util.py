@@ -83,7 +83,7 @@ class DatasetUtils:
         op_example["action"] = action_arr[:-1]
         
         yaw_next = np.load(os.path.join(save_location, f"ee_yaw_next.npy"))
-        op_example["yaw_next"] = yaw_next
+        op_example["ee_yaw_next"] = yaw_next
         #print (f"Action Shape: {op_example['action'].shape}")
         return op_example
 

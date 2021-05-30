@@ -116,7 +116,11 @@ class selfsupervised:
             self.model.train()
 
             for i_iter, sample_batched in tqdm(enumerate(self.dataloaders["val"])):
-
+                #print (f"image shape: {sample_batched['image'].shape}")
+                #print (f"depth_shape: {sample_batched['depth'].shape}")
+                #print (f"yaw_next shape: {sample_batched['ee_yaw_next'].shape}")
+                #print (f"proprio: {sample_batched['proprio'].shape}")
+                #print (f"contact_next: {sample_batched['contact_next'].shape}")
                 t_st = time.time()
                 self.optimizer.zero_grad()
 
@@ -394,9 +398,9 @@ class selfsupervised:
 
         self.logger.print("Sampler finished")
 
-        tacto_dataset = TactoManipulationDataset(
+        """tacto_dataset = TactoManipulationDataset(
             transform=transforms.Compose([ToTensor(device=self.device)])
-            )
+            )"""
         
         #print ("================TACTO ADDED===================")
         self.datasets["train"] = MultimodalManipulationDataset(

@@ -55,16 +55,16 @@ class TactoManipulationDataset(Dataset):
 
 
         sample = {
-            "image": image,
-            "depth": depth,
+            "image": image.astype(np.float),
+            "depth": np.expand_dims(depth, axis=2).astype(np.float32),
             "flow": flow,
             "flow_mask": flow_mask,
             "action": self.data_list[index]["action"],
-            "digits_color": np.array(digits_color),
-            "digits_depth": np.array(digits_depth),
+            "digits_color": np.array(digits_color).astype(np.float32),
+            "digits_depth": np.expand_dims(np.array(digits_depth), axis=3).astype(np.float32),
             "proprio": proprio,
             "ee_yaw_next": self.data_list[index]["ee_yaw_next"],
-            "contact_next": np.array([self.data_list[index]["contact"]]).astype(np.float),
+            "contact_next": np.array([self.data_list[index]["contact"]]).astype(np.float32),
             "unpaired_image": image,
             "unpaired_depth": depth,
             "unpaired_proprio": unpaired_proprio,
@@ -81,7 +81,7 @@ class TactoManipulationDataset(Dataset):
 
         self.paired_examples = {}
 
-        for idx in tqdm(range(self.__len__()), desc="pairing filnames"):
+        for idx in tqdm(range(self.__len__()), desc="pairing indices"):
             proprio_dist = None
             curr_proprio = self.data_list[idx]["proprio"]
             while proprio_dist is None or proprio_dist < tolerance:

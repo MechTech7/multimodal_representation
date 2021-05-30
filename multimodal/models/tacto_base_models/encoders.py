@@ -1,5 +1,6 @@
+import torch
 import torch.nn as nn
-from models.models_utils import init_weights
+from models.models_utils import init_weights, rescaleImage, filter_depth
 from models.base_models.layers import CausalConv1D, Flatten, conv2d
 
 
@@ -80,11 +81,17 @@ class ImageEncoder(nn.Module):
     def forward(self, image):
         # image encoding layers
         out_img_conv1 = self.img_conv1(image)
+        #print (f"first_conv: {out_img_conv1.shape}")
         out_img_conv2 = self.img_conv2(out_img_conv1)
+        #print (f"sec_conv: {out_img_conv2.shape}")
         out_img_conv3 = self.img_conv3(out_img_conv2)
+        #print (f"third_conv: {out_img_conv3.shape}")
         out_img_conv4 = self.img_conv4(out_img_conv3)
+        #print (f"fourth_conv: {out_img_conv4.shape}")
         out_img_conv5 = self.img_conv5(out_img_conv4)
+        #print (f"fith_conv: {out_img_conv5.shape}")
         out_img_conv6 = self.img_conv6(out_img_conv5)
+        print (f"sixth_conv: {out_img_conv6.shape}")
 
         img_out_convs = (
             out_img_conv1,
@@ -146,3 +153,124 @@ class DepthEncoder(nn.Module):
         depth_out = self.depth_encoder(flattened).unsqueeze(2)
 
         return depth_out, depth_out_convs
+
+
+class TactoColorEncoder(nn.Module):
+    def __init__(self, z_dim, initialize_weights=True):
+        super().__init__()
+        self.z_dim = z_dim
+
+        self.conv_1 = conv2d(3, 16, kernel_size=7, stride=2)
+        self.conv_2 = conv2d(16, 32, kernel_size=7, stride=2)
+        self.conv_3 = conv2d(32, 32, kernel_size=7, stride=2)
+        self.conv_4 = conv2d(32, 32, kernel_size=7, stride=2)
+        self.flatten = Flatten()
+
+        self.linear = nn.Linear(32 * 10 * 8, self.z_dim)
+        if initialize_weights:
+            init_weights(self.modules())
+    
+    def forward(self, tacto_image):
+        out_conv_1 = self.conv_1(tacto_image)
+        out_conv_2 = self.conv_2(out_conv_1)
+        out_conv_3 = self.conv_3(out_conv_2)
+        out_conv_4 = self.conv_4(out_conv_3)
+
+        flat = self.flatten(out_conv_4)
+        out = self.linear(flat)
+
+        #print (f"out_conv_4_shape: {out.shape}")
+
+        return out
+
+class TactoDepthEncoder(nn.Module):
+    def __init__(self, z_dim, initialize_weights=True):
+        super().__init__()
+        self.z_dim = z_dim
+
+        self.conv_1 = conv2d(1, 16, kernel_size=7, stride=2)
+        self.conv_2 = conv2d(16, 32, kernel_size=7, stride=2)
+        self.conv_3 = conv2d(32, 32, kernel_size=7, stride=2)
+        self.conv_4 = conv2d(32, 32, kernel_size=7, stride=2)
+        self.flatten = Flatten()
+
+        self.linear = nn.Linear(32 * 10 * 8, self.z_dim)
+        if initialize_weights:
+            init_weights(self.modules())
+    
+    
+    def forward(self, tacto_depth):
+        out_conv_1 = self.conv_1(tacto_depth)
+        out_conv_2 = self.conv_2(out_conv_1)
+        out_conv_3 = self.conv_3(out_conv_2)
+        out_conv_4 = self.conv_4(out_conv_3)
+
+        flat = self.flatten(out_conv_4)
+        out = self.linear(flat)
+
+        #print (f"out_conv_4_shape: {out.shape}")
+
+        return out
+
+
+
+class FullTactoColorEncoder(nn.Module):
+    def __init__(self, z_dim, initialize_weights=True):
+        super().__init__()
+        self.z_dim = z_dim
+        self.color_encoder = TactoColorEncoder(z_dim, initialize_weights)
+        self.pre_process = rescaleImage
+
+        self.linear = nn.Sequential(
+            nn.Linear(2 * self.z_dim, self.z_dim), nn.LeakyReLU(0.1, inplace=True)
+        )
+
+    def forward(self, tacto_colors):
+        tacto_left = tacto_colors[:, 0]
+        tacto_left = self.pre_process(tacto_left)
+
+        tacto_right = tacto_colors[:, 1]
+        tacto_right = self.pre_process(tacto_right)
+
+        out_left = self.color_encoder(tacto_left)
+        out_right = self.color_encoder(tacto_right)
+
+        conc_out = torch.cat([out_left, out_right], dim=1)
+
+        out = self.linear(conc_out)
+        return out        
+        
+class FullTactoDepthEncoder(nn.Module):
+    def __init__(self, z_dim, initialize_weights=True):
+        super().__init__()
+
+        self.z_dim = z_dim
+        self.depth_encoder = TactoDepthEncoder(z_dim, initialize_weights)
+        self.pre_process = self.depth_preproc
+        self.linear = nn.Sequential(
+            nn.Linear(2 * self.z_dim, self.z_dim), nn.LeakyReLU(0.1, inplace=True)
+        )
+
+    
+    def depth_preproc(self, depth_img):
+        depth_img = depth_img.transpose(1, 3).transpose(2, 3)
+        depth_img = filter_depth(depth_img)
+
+        return depth_img
+    
+    def forward(self, tacto_depth):
+        tacto_left = tacto_depth[:, 0]
+        tacto_left = self.pre_process(tacto_left)
+
+        tacto_right = tacto_depth[:, 1]
+        tacto_right = self.pre_process(tacto_right)
+
+        out_left = self.depth_encoder(tacto_left)
+        out_right = self.depth_encoder(tacto_right)
+
+        conc_out = torch.cat([out_left, out_right], dim=1)
+        out = self.linear(conc_out)
+
+        return out
+
+

@@ -245,6 +245,9 @@ class selfsupervised:
                 kl_normal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
             )
 
+        #print (f"flow_shape: {flow2.shape}")
+        #print (f"optical_flow_label_shape: {optical_flow_label.shape}")
+
         flow_loss = self.alpha_optical_flow * realEPE(
             flow2, optical_flow_label, self.device
         )

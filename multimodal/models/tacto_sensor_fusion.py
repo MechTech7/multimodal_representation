@@ -272,7 +272,7 @@ class SensorFusionSelfSupervised(SensorFusion):
 
         # tile state-action features and append to conv map
         batch_dim = mm_act_feat.size(0)  # batch size
-        tiled_feat = mm_act_feat.view(batch_dim, self.z_dim, 1, 1).expand(-1, -1, 2, 2)
+        tiled_feat = mm_act_feat.view(batch_dim, self.z_dim, 1, 1).expand(-1, -1, 4, 4)
 
         # -------------------------------------#
         # Pairing / Contact / EE Delta Decoder #
@@ -287,6 +287,8 @@ class SensorFusionSelfSupervised(SensorFusion):
         optical_flow2, optical_flow2_mask = self.optical_flow_decoder(
             tiled_feat, img_out_convs
         )
+        #print (f"optical_flow2_shape: {optical_flow2.shape}")
+        #print (f"optical_mask_shape: {optical_flow2_mask.shape}")
 
         if self.deterministic:
             return (

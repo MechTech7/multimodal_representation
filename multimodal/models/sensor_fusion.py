@@ -117,11 +117,11 @@ class SensorFusion(nn.Module):
         frc_out = self.frc_encoder(frc_in)
         proprio_out = self.proprio_encoder(proprio_in)
 
-        print (f"img_shape: {img_out.shape}")
-        print (f"depth_shape: {depth_out.shape}")
-        print (f"Proprio shape: {proprio_out.shape}")
-        print (f"Force out shape: {frc_out.shape}")
-        
+        #print (f"img_shape: {img_out.shape}")
+        #print (f"depth_shape: {depth_out.shape}")
+        #print (f"Proprio shape: {proprio_out.shape}")
+        #print (f"Force out shape: {frc_out.shape}")
+
         if self.deterministic:
             # multimodal embedding
             mm_f1 = torch.cat([img_out, frc_out, proprio_out, depth_out], 1).squeeze()

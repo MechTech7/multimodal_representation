@@ -63,13 +63,13 @@ class TactoManipulationDataset(Dataset):
             "digits_color": np.array(digits_color).astype(np.float32),
             "digits_depth": np.expand_dims(np.array(digits_depth), axis=3).astype(np.float32),
             "proprio": proprio.astype(np.float32),
-            "ee_yaw_next": self.data_list[index]["ee_yaw_next"],
+            "ee_yaw_next": self.data_list[index]["ee_yaw_next"].astype(np.float32),
             "contact_next": np.array([self.data_list[index]["contact"]]).astype(np.float32),
-            "unpaired_image": image,
-            "unpaired_depth": depth,
-            "unpaired_proprio": unpaired_proprio,
-            "unpaired_digits_color": unpaired_digits_color,
-            "unpaired_digits_depth": unpaired_digits_depth
+            "unpaired_image": image.astype(np.float32),
+            "unpaired_depth": np.expand_dims(depth, axis=2).astype(np.float32),
+            "unpaired_proprio": unpaired_proprio.astype(np.float32),
+            "unpaired_digits_color": np.array(unpaired_digits_color).astype(np.float32),
+            "unpaired_digits_depth": np.expand_dims(np.array(unpaired_digits_depth), axis=3).astype(np.float32)
         }
 
         if self.transform:

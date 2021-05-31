@@ -61,6 +61,8 @@ class OpticalFlowDecoder(nn.Module):
         out_img_conv1, out_img_conv2, out_img_conv3, out_img_conv4, out_img_conv5, out_img_conv6 = (
             img_out_convs
         )
+        #print (f"conv6_shape: {out_img_conv6.shape}")
+        #print (f"tiled_shape: {tiled_feat.shape}")
 
         optical_flow_in_f = torch.cat([out_img_conv6, tiled_feat], 1)
         optical_flow_in_f2 = self.optical_flow_conv(optical_flow_in_f)

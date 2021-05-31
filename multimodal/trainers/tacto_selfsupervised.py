@@ -51,7 +51,7 @@ class selfsupervised:
             encoder=configs["encoder"],
             deterministic=configs["deterministic"],
             z_dim=configs["zdim"],
-            action_dim=configs["action_dim"],
+            action_dim=3,#configs["action_dim"],
         ).to(self.device)
 
         self.optimizer = optim.Adam(
@@ -115,7 +115,7 @@ class selfsupervised:
             self.logger.print("Training epoch #{}...".format(i_epoch))
             self.model.train()
 
-            for i_iter, sample_batched in tqdm(enumerate(self.dataloaders["val"])):
+            for i_iter, sample_batched in tqdm(enumerate(self.dataloaders["train"])):
                 #print (f"image shape: {sample_batched['image'].shape}")
                 #print (f"depth_shape: {sample_batched['depth'].shape}")
                 #print (f"yaw_next shape: {sample_batched['ee_yaw_next'].shape}")
@@ -139,8 +139,8 @@ class selfsupervised:
 
                 self.global_cnt["train"] += 1
 
-            if self.configs["val_ratio"] != 0:
-                self.validate(i_epoch)
+            #if self.configs["val_ratio"] != 0:
+            #    self.validate(i_epoch)
 
             # ---------------------------
             # Save weights
@@ -209,7 +209,9 @@ class selfsupervised:
 
         # input data
         image = self.alpha_vision * sampled_batched["image"].to(self.device)
-        force = self.alpha_force * sampled_batched["force"].to(self.device)
+        #force = self.alpha_force * sampled_batched["force"].to(self.device)
+        tacto_color = sampled_batched["digits_color"].to(self.device)
+        tacto_depth = sampled_batched["digits_depth"].to(self.device)
         proprio = self.alpha_proprio * sampled_batched["proprio"].to(self.device)
         depth = self.alpha_depth * sampled_batched["depth"].to(self.device).transpose(
             1, 3
@@ -218,16 +220,24 @@ class selfsupervised:
         action = sampled_batched["action"].to(self.device)
 
         contact_label = sampled_batched["contact_next"].to(self.device)
-        optical_flow_label = sampled_batched["flow"].to(self.device)
-        optical_flow_mask_label = sampled_batched["flow_mask"].to(self.device)
+        optical_flow_label = sampled_batched["flow"].to(self.device).transpose(
+            1, 3
+        ).transpose(2, 3)
+
+        optical_flow_mask_label = sampled_batched["flow_mask"].to(self.device).transpose(
+            1, 3
+        ).transpose(2, 3)
 
         # unpaired data for sampled point
         unpaired_image = self.alpha_vision * sampled_batched["unpaired_image"].to(
             self.device
         )
-        unpaired_force = self.alpha_force * sampled_batched["unpaired_force"].to(
+        """unpaired_force = self.alpha_force * sampled_batched["unpaired_force"].to(
             self.device
-        )
+        )"""
+        unpaired_tacto_color = sampled_batched["unpaired_digits_color"].to(self.device)
+        unpaired_tacto_depth = sampled_batched["unpaired_digits_depth"].to(self.device)
+
         unpaired_proprio = self.alpha_proprio * sampled_batched["unpaired_proprio"].to(
             self.device
         )
@@ -240,12 +250,12 @@ class selfsupervised:
 
         if self.deterministic:
             paired_out, contact_out, flow2, optical_flow2_mask, ee_delta_out, mm_feat = self.model(
-                image, force, proprio, depth, action
+                image, tacto_color, tacto_depth, proprio, depth, action
             )
             kl = torch.tensor([0]).to(self.device).type(torch.cuda.FloatTensor)
         else:
             paired_out, contact_out, flow2, optical_flow2_mask, ee_delta_out, mm_feat, mu_z, var_z, mu_prior, var_prior = self.model(
-                image, force, proprio, depth, action
+                image, tacto_color, tacto_depth, proprio, depth, action
             )
             kl = self.alpha_kl * torch.mean(
                 kl_normal(mu_z, var_z, mu_prior.squeeze(0), var_prior.squeeze(0))
@@ -280,7 +290,7 @@ class selfsupervised:
         )
 
         unpaired_total_losses = self.model(
-            unpaired_image, unpaired_force, unpaired_proprio, unpaired_depth, action
+            unpaired_image, unpaired_tacto_color, unpaired_tacto_depth, unpaired_proprio, unpaired_depth, action
         )
         unpaired_out = unpaired_total_losses[0]
         unpaired_loss = self.alpha_pair * self.loss_is_paired(
@@ -392,18 +402,16 @@ class selfsupervised:
         self.samplers["val"] = SubsetRandomSampler(
             range(len(val_filename_list1) * (self.configs["ep_length"] - 1))
         )
-        self.samplers["train"] = SubsetRandomSampler(
+        """self.samplers["train"] = SubsetRandomSampler(
             range(len(filename_list1) * (self.configs["ep_length"] - 1))
-        )
+        )"""
 
         self.logger.print("Sampler finished")
 
-        """tacto_dataset = TactoManipulationDataset(
-            transform=transforms.Compose([ToTensor(device=self.device)])
-            )"""
+        self.datasets["train"] = TactoManipulationDataset()
         
         #print ("================TACTO ADDED===================")
-        self.datasets["train"] = MultimodalManipulationDataset(
+        """self.datasets["train"] = MultimodalManipulationDataset(
             filename_list1,
             transform=transforms.Compose(
                 [
@@ -416,9 +424,9 @@ class selfsupervised:
             training_type=self.configs["training_type"],
             action_dim=self.configs["action_dim"],
 
-        )
+        )"""
 
-        self.datasets["val"] = MultimodalManipulationDataset(
+        """self.datasets["val"] = MultimodalManipulationDataset(
             val_filename_list1,
             transform=transforms.Compose(
                 [
@@ -431,29 +439,29 @@ class selfsupervised:
             training_type=self.configs["training_type"],
             action_dim=self.configs["action_dim"],
 
-        )
+        )"""
 
         self.logger.print("Dataset finished")
 
-        self.dataloaders["val"] = DataLoader(
+        """self.dataloaders["val"] = DataLoader(
             self.datasets["val"],
             batch_size=self.configs["batch_size"],
             num_workers=self.configs["num_workers"],
             sampler=self.samplers["val"],
             pin_memory=True,
             drop_last=True,
-        )
+        )"""
         self.dataloaders["train"] = DataLoader(
             self.datasets["train"],
             batch_size=self.configs["batch_size"],
-            num_workers=self.configs["num_workers"],
-            sampler=self.samplers["train"],
-            pin_memory=True,
+            num_workers=0,#self.configs["num_workers"],
+            #sampler=self.samplers["train"],
+            #pin_memory=True,
             drop_last=True,
         )
 
         self.len_data = len(self.dataloaders["train"])
-        self.val_len_data = len(self.dataloaders["val"])
+        self.val_len_data = 0 #len(self.dataloaders["val"])
 
         self.logger.print("Finished setting up date")
 

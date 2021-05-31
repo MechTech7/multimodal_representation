@@ -240,6 +240,8 @@ def realEPE(output, target, device, sparse=False):
     b, _, h, w = target.size()
 
     upsampled_output = nn.functional.upsample(output, size=(h, w), mode="bilinear")
+    #print (f"upsampled_output: {upsampled_output.shape}")
+    #print (f"target: {target.shape}")
     return EPE(upsampled_output, target, device, sparse, mean=True)
 
 

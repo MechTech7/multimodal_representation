@@ -25,6 +25,7 @@ from dataloaders import MultimodalManipulationDataset
 from dataloaders.TactoManipulationDataset import TactoManipulationDataset
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import SubsetRandomSampler
+from torch.utils.data import ConcatDataset
 from torchvision import transforms
 
 
@@ -115,7 +116,7 @@ class selfsupervised:
             self.logger.print("Training epoch #{}...".format(i_epoch))
             self.model.train()
 
-            for i_iter, sample_batched in tqdm(enumerate(self.dataloaders["train"])):
+            for i_iter, sample_batched in tqdm(enumerate(self.dataloaders["val"])):
                 #print (f"image shape: {sample_batched['image'].shape}")
                 #print (f"depth_shape: {sample_batched['depth'].shape}")
                 #print (f"yaw_next shape: {sample_batched['ee_yaw_next'].shape}")
@@ -389,24 +390,36 @@ class selfsupervised:
 
         self.logger.print("Initial finished")
 
-        val_filename_list1, filename_list1 = augment_val(
-            val_filename_list, filename_list
-        )
-
         self.logger.print("Listing finished")
 
         self.dataloaders = {}
         self.samplers = {}
         self.datasets = {}
 
-        self.samplers["val"] = SubsetRandomSampler(
-            range(len(val_filename_list1) * (self.configs["ep_length"] - 1))
-        )
-        """self.samplers["train"] = SubsetRandomSampler(
-            range(len(filename_list1) * (self.configs["ep_length"] - 1))
-        )"""
-
+        
         self.logger.print("Sampler finished")
+
+        #NOTE: Be sure to change the dataset paths to the locations of your own dataset
+
+        #Added a dataset of random motions to ensure diversity
+        heurstic_dataset = TactoManipulationDataset()
+        random_dataset = TactoManipulationDataset(dataset_location="/home/mason/peg_insertation_dataset/random_data_contact/")
+
+        tacto_dataset = ConcatDataset([heurstic_dataset, random_dataset])
+        
+        dataset_len = len(tacto_dataset)
+
+        train_val_split = 0.7
+        train_len = int(train_val_split * dataset_len)
+
+        print (f"train_ex_count: {train_len}")
+        self.samplers["val"] = SubsetRandomSampler(
+            range(train_len, dataset_len)
+        )
+        self.samplers["train"] = SubsetRandomSampler(
+            range(train_len)
+        )
+
 
         self.datasets["train"] = TactoManipulationDataset()
         
@@ -443,16 +456,16 @@ class selfsupervised:
 
         self.logger.print("Dataset finished")
 
-        """self.dataloaders["val"] = DataLoader(
-            self.datasets["val"],
+        self.dataloaders["val"] = DataLoader(
+            tacto_dataset,
             batch_size=self.configs["batch_size"],
             num_workers=self.configs["num_workers"],
             sampler=self.samplers["val"],
             pin_memory=True,
             drop_last=True,
-        )"""
+        )
         self.dataloaders["train"] = DataLoader(
-            self.datasets["train"],
+            tacto_dataset,
             batch_size=self.configs["batch_size"],
             num_workers=0,#self.configs["num_workers"],
             #sampler=self.samplers["train"],

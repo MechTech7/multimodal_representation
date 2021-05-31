@@ -248,7 +248,7 @@ class PerlsDepthEncoder(nn.Module):
         depth_out = self.depth_encoder(flattened).unsqueeze(2)
 
         return depth_out, depth_out_convs
-        
+
 class TactoColorEncoder(nn.Module):
     def __init__(self, z_dim, initialize_weights=True):
         super().__init__()
@@ -389,7 +389,7 @@ class TactoEncoder(nn.Module):
         depth_enc = self.full_depth_enc(tacto_depth)
 
         conc_vec = torch.cat([color_enc, depth_enc], dim=1)
-        lin_out = self.linear_func(conc_vec)
+        lin_out = self.linear_func(conc_vec).unsqueeze(2)
 
         return lin_out
 

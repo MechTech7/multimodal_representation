@@ -17,6 +17,9 @@ cd multimodal/dataset
 ## run training
 
 `python mini_main.py --config configs/training_default.yaml`
+## run Training with Perls2 and Tacto Data
+
+`python tacto_mini_train.py --config configs/training_default.yaml`
 
 
 ## ROBOT DATASET
